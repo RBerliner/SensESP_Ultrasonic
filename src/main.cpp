@@ -1,9 +1,10 @@
 #include <Arduino.h>
 
 #include "sensesp_app.h"
+#include "sensesp_app_builder.h"
 #include "transforms/linear.h"
 #include "signalk/signalk_output.h"
-#include "sensors/ultrasonic_input.h"
+#include "sensors/ultrasonic_distance.h"
 #include "transforms/moving_average.h"
 
 #define TRIGGER_PIN 15
@@ -25,13 +26,19 @@ ReactESP app([]() {
 
   debugI("\nSerial debug enabled\n");
 
+ // Create a builder object
+  SensESPAppBuilder builder;
+
   // Create the global SensESPApp() object.
-  sensesp_app = new SensESPApp();
+  sensesp_app = builder.set_hostname("bilge-monitor")
+                    ->set_sk_server("192.168.0.1", 3000)
+                    ->set_standard_sensors(IP_ADDRESS)
+                    ->get_app();
 
   // The "SignalK path" identifies this sensor to the SignalK server. Leaving
   // this blank would indicate this particular sensor (or transform) does not
   // broadcast SignalK data.
-  const char *sk_path = "tanks.freshWater.starboard.currentLevel";
+  const char *sk_path = "bilge.currentLevel";
 
   // The "Configuration path" is combined with "/config" to formulate a URL
   // used by the RESTful API for retrieving or setting configuration data.
@@ -42,28 +49,25 @@ ReactESP app([]() {
   // configuration to save, or that you're not interested in doing
   // run-time configuration.
 
-  const char *ultrasonic_in_config_path = "/freshWaterTank_starboard/ultrasonic_in";
-  const char *linear_config_path = "/freshWaterTank_starboard/linear";
-  const char *ultrasonic_ave_samples = "/freshWaterTank_starboard/samples";
+  const char *ultrasonic_in_config_path = "/bilge/ultrasonic_in";
+  const char *linear_config_path = "/bilge/linear";
+  const char *ultrasonic_ave_samples = "/bilge/samples";
 
   // Create a sensor that is the source of our data, that will be read every readDelay ms.
   // It is an ultrasonic distance sensor that sends out an acoustical pulse in response
   // to a 100 micro-sec trigger pulse from the ESP. The return acoustical pulse width
   // can be converted to a distance by the formula 2*distance = pulse_width/speed_of_sound
   // With pulse_width in micro-sec and distance in cm, 2*speed_of_sound = 58
-  // The sensor is mounted at the top of a water tank that is 25 cm deep.
+
   uint read_delay = 1000;
 
   auto* pUltrasonicSens = new UltrasonicSens(TRIGGER_PIN, INPUT_PIN, read_delay, ultrasonic_in_config_path);
 
   // A Linear transform takes its input, multiplies it by the multiplier, then adds the offset,
-  // to calculate its output. In this example, we want to see the final output presented
-  // as a ratio, where full (~2 cm) = 1 and  empty (25 cm)= 0.
-  // To get a ratio:  R = (pulse_width/58.)*(-0.05) + 1.08675
-  // full = 1450 * (-0.044347 / 58) +  1.08675 = 1
-  // empty = 116 * (-0.044347 / 58) +  1.08675 = 0
-  const float multiplier = -0.00074948;
-  const float offset = 1.08675;
+  // to calculate its output. In this example, we will use the distance from the sensor in cm which is given by the 
+  // ultrasonicSensor output/58.
+  const float multiplier = .01724;
+  const float offset = 0.;
   float scale = 1.0;
 
   // Wire up the output of the analog input to the Linear transform,
