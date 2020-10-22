@@ -1,9 +1,10 @@
 #include <Arduino.h>
 
 #include "sensesp_app.h"
+#include "sensesp_app_builder.h"
 #include "transforms/linear.h"
 #include "signalk/signalk_output.h"
-#include "sensors/ultrasonic_input.h"
+#include "sensors/ultrasonic_distance.h"
 #include "transforms/moving_average.h"
 
 #define TRIGGER_PIN 15
@@ -25,8 +26,14 @@ ReactESP app([]() {
 
   debugI("\nSerial debug enabled\n");
 
-  // Create the global SensESPApp() object.
-  sensesp_app = new SensESPApp();
+ // Create a builder object
+  SensESPAppBuilder builder;
+
+  // Create the global SensESPApp() object
+  sensesp_app = builder.set_hostname("freshWaterTank_Starboard")
+                    ->set_sk_server("192.168.0.1", 3000)
+                    ->set_standard_sensors(IP_ADDRESS)
+                    ->get_app();
 
   // The "SignalK path" identifies this sensor to the SignalK server. Leaving
   // this blank would indicate this particular sensor (or transform) does not
@@ -59,11 +66,11 @@ ReactESP app([]() {
   // A Linear transform takes its input, multiplies it by the multiplier, then adds the offset,
   // to calculate its output. In this example, we want to see the final output presented
   // as a ratio, where full (~2 cm) = 1 and  empty (25 cm)= 0.
-  // To get a ratio:  R = (pulse_width/58.)*(-0.05) + 1.08675
-  // full = 1450 * (-0.044347 / 58) +  1.08675 = 1
-  // empty = 116 * (-0.044347 / 58) +  1.08675 = 0
-  const float multiplier = -0.00074948;
-  const float offset = 1.08675;
+  // To get a ratio:  R = (pulse_width/58.)*(-0.04347) + 1.0869
+  // full = 116 * (-0.04347 / 58) +  1.0869 = 1
+  // empty = 1450 * (-0.04347 / 58) +  1.0869 = 0
+  const float multiplier = -0.04347;
+  const float offset = 1.0869;
   float scale = 1.0;
 
   // Wire up the output of the analog input to the Linear transform,
